@@ -7,20 +7,23 @@ object EscPosCommands {
     /** GS V 0 - full cut. */
     val CUT = byteArrayOf(0x1D, 0x56, 0x00)
 
-    private const val LINE = "--------------------------------"
-    private const val DOUBLE_LINE = "================================"
+    /** Printable columns per line (48 for 80 mm paper, Font A). */
+    const val COLUMNS = 48
 
-    private fun center(text: String, width: Int = 32): String =
+    private val LINE = "-".repeat(COLUMNS)
+    private val DOUBLE_LINE = "=".repeat(COLUMNS)
+
+    private fun center(text: String, width: Int = COLUMNS): String =
         " ".repeat(((width - text.length) / 2).coerceAtLeast(0)) + text
 
-    /** Sample receipt (32 columns). Set [includeCut] to false for troubleshooting. */
-    fun testReceipt(includeCut: Boolean = true): ByteArray {
+    /** Sample receipt ([COLUMNS] columns). Set [includeCut] to false for troubleshooting. */
+    fun testReceipt(stationLabel: String, includeCut: Boolean = true): ByteArray {
         val text = listOf(
             DOUBLE_LINE,
             center("CORAL REEF & BEEF"),
             DOUBLE_LINE,
             center("PRINTER TEST"),
-            "Printer: Nextep NE-511",
+            "Station: $stationLabel",
             "Connection: Ethernet",
             "Status: Test command received",
             LINE,

@@ -12,6 +12,8 @@ import android.util.Log
 import com.coral.printagent.model.PrintJob
 import com.coral.printagent.model.PrinterResult
 import com.coral.printagent.model.PrinterSettings
+import com.coral.printagent.model.PrinterTarget
+import org.json.JSONObject
 import com.coral.printagent.printer.PrinterRepository
 import com.coral.printagent.settings.PrinterSettingsRepository
 import java.io.BufferedReader
@@ -70,7 +72,7 @@ class BridgeService : Service() {
             NotificationChannel(CHANNEL_ID, "Print bridge", NotificationManager.IMPORTANCE_LOW)
         )
         return Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("Coral Printer Bridge")
+            .setContentTitle("Printer Bridge")
             .setContentText("Listening for print requests on localhost:$PORT")
             .setSmallIcon(android.R.drawable.ic_menu_info_details)
             .setOngoing(true)
@@ -160,8 +162,15 @@ class BridgeService : Service() {
         val corsOrigin = if (cors) origin else null
         return when {
             method == "GET" && path == "/status" -> http(200, """{"ok":true,"message":"Bridge running"}""", corsOrigin)
-            method == "POST" && path == "/print/test" ->
-                result(printerLock.withLock { printer.testPrint(settings) }, corsOrigin)
+            method == "POST" && path == "/print/test" -> {
+                val target = try {
+                    if (body.isBlank()) PrinterTarget.KITCHEN
+                    else PrinterTarget.fromJson(JSONObject(body).optString("printer", "kitchen"))
+                } catch (e: Exception) {
+                    return http(400, """{"ok":false,"message":"\"printer\" must be kitchen or register"}""", corsOrigin)
+                }
+                result(printerLock.withLock { printer.testPrint(settings, target) }, corsOrigin)
+            }
             method == "POST" && path == "/print" -> {
                 if (tooLarge) return http(413, """{"ok":false,"message":"Payload too large"}""", corsOrigin)
                 val job = try {

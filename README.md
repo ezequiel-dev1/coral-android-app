@@ -8,7 +8,7 @@ No internet connection is required. Everything happens on the local Wi-Fi/LAN.
 
 ## Features
 
-- Configure the printer IP, TCP port (default `9100`) and cash drawer pin (0 or 1). Settings persist across restarts.
+- Configure the kitchen printer and the register printer (IP and TCP port, default `9100`), plus the cash drawer pin (0 or 1). The drawer is connected to the register printer only. Settings persist across restarts.
 - **Test Connection**: opens and closes a TCP connection to the printer.
 - **Test Print**: prints a sample ESC/POS receipt and cuts the paper.
 - **Open Cash Drawer**: sends the ESC/POS drawer pulse.
@@ -57,8 +57,9 @@ When enabled, the app listens on `http://127.0.0.1:8765`, on the tablet only. Ot
 | Method | Path | Action |
 |---|---|---|
 | GET | `/status` | Health check |
-| POST | `/print/test` | Print the test receipt |
-| POST | `/drawer/open` | Open the cash drawer |
+| POST | `/print/test` | Print the test receipt. Optional body `{"printer":"kitchen"\|"register"}`, default kitchen |
+| POST | `/print` | Print a job. Add `"printer": "kitchen"` or `"register"` (default kitchen, or register when `openDrawer` is true). `openDrawer` on the kitchen printer returns 400 |
+| POST | `/drawer/open` | Open the cash drawer (always the register printer) |
 
 Responses are JSON: `{ "ok": boolean, "message": string }`.
 
@@ -102,7 +103,7 @@ The full integration spec for the web app is in [`docs/web-app-integration-spec.
 
 1. Install the app and open it.
 2. Allow notifications when prompted. The bridge runs as a foreground service and shows a notification.
-3. Enter the printer IP and port, then tap **Save**, **Test Connection**, **Test Print** and **Open Cash Drawer**.
+3. Enter the IP and port for each printer, then tap **Save**, **Test Connection**, **Test Print** and **Open Cash Drawer**.
 4. Check the allowed origins, then turn on the bridge switch.
 5. In the Android battery settings for the app, choose **Unrestricted**, so the system doesn't stop the bridge.
 

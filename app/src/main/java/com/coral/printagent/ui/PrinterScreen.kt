@@ -3,6 +3,7 @@ package com.coral.printagent.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import com.coral.printagent.R
 import com.coral.printagent.bridge.BridgeService
 import com.coral.printagent.model.PrinterResult
+import com.coral.printagent.model.PrinterTarget
 
 @Composable
 fun PrinterScreen(vm: PrinterViewModel, modifier: Modifier = Modifier) {
@@ -44,58 +46,55 @@ fun PrinterScreen(vm: PrinterViewModel, modifier: Modifier = Modifier) {
             modifier = Modifier.height(72.dp),
         )
         Text(
-            "Coral Printer Bridge",
+            "Printer Bridge",
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.primary,
         )
 
-        OutlinedTextField(
-            value = vm.ip,
-            onValueChange = vm::onIpChange,
-            label = { Text("Printer IP Address") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = vm.port,
-            onValueChange = vm::onPortChange,
-            label = { Text("TCP Port") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        Text("Cash drawer pin", style = MaterialTheme.typography.labelLarge)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(0, 1).forEach { pin ->
-                FilterChip(
-                    selected = vm.drawerPin == pin,
-                    onClick = { vm.onPinChange(pin) },
-                    label = { Text("Pin $pin" + if (pin == 0) " (default)" else "") },
-                )
-            }
-        }
-
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = vm::save, enabled = !vm.isBusy) { Text("Save") }
-            OutlinedButton(onClick = vm::testConnection, enabled = !vm.isBusy) {
-                Text("Test Connection")
+            Button(onClick = vm::testPrintBoth, enabled = !vm.isBusy) {
+                Text("Test Print Both Printers")
             }
         }
-        Text("Connection: ${vm.connectionLabel}", style = MaterialTheme.typography.bodyLarge)
-
-        Text("Printer actions", style = MaterialTheme.typography.titleMedium)
-        Button(
-            onClick = vm::testPrint,
-            enabled = !vm.isBusy,
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text("Test Print") }
-        Button(
-            onClick = vm::openDrawer,
-            enabled = !vm.isBusy,
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text("Open Cash Drawer") }
+        PrinterSection(
+            title = "Kitchen printer (order tickets)",
+            ip = vm.kitchenIp,
+            port = vm.kitchenPort,
+            connection = vm.kitchenConnection,
+            busy = vm.isBusy,
+            onIp = { vm.onIpChange(PrinterTarget.KITCHEN, it) },
+            onPort = { vm.onPortChange(PrinterTarget.KITCHEN, it) },
+            onTestConnection = { vm.testConnection(PrinterTarget.KITCHEN) },
+            onTestPrint = { vm.testPrint(PrinterTarget.KITCHEN) },
+        )
+        PrinterSection(
+            title = "Register printer (receipts, cash drawer)",
+            ip = vm.registerIp,
+            port = vm.registerPort,
+            connection = vm.registerConnection,
+            busy = vm.isBusy,
+            onIp = { vm.onIpChange(PrinterTarget.REGISTER, it) },
+            onPort = { vm.onPortChange(PrinterTarget.REGISTER, it) },
+            onTestConnection = { vm.testConnection(PrinterTarget.REGISTER) },
+            onTestPrint = { vm.testPrint(PrinterTarget.REGISTER) },
+        ) {
+            Text("Cash drawer pin", style = MaterialTheme.typography.labelLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(0, 1).forEach { pin ->
+                    FilterChip(
+                        selected = vm.drawerPin == pin,
+                        onClick = { vm.onPinChange(pin) },
+                        label = { Text("Pin $pin" + if (pin == 0) " (default)" else "") },
+                    )
+                }
+            }
+            Button(
+                onClick = vm::openDrawer,
+                enabled = !vm.isBusy,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Open Cash Drawer") }
+        }
 
         Text("Web bridge (Chrome on this tablet)", style = MaterialTheme.typography.titleMedium)
         OutlinedTextField(
@@ -133,5 +132,45 @@ fun PrinterScreen(vm: PrinterViewModel, modifier: Modifier = Modifier) {
                 style = MaterialTheme.typography.bodyLarge,
             )
         }
+    }
+}
+
+@Composable
+private fun PrinterSection(
+    title: String,
+    ip: String,
+    port: String,
+    connection: String,
+    busy: Boolean,
+    onIp: (String) -> Unit,
+    onPort: (String) -> Unit,
+    onTestConnection: () -> Unit,
+    onTestPrint: () -> Unit,
+    extra: @Composable ColumnScope.() -> Unit = {},
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(title, style = MaterialTheme.typography.titleMedium)
+        OutlinedTextField(
+            value = ip,
+            onValueChange = onIp,
+            label = { Text("Printer IP Address") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = port,
+            onValueChange = onPort,
+            label = { Text("TCP Port") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = onTestConnection, enabled = !busy) { Text("Test Connection") }
+            Button(onClick = onTestPrint, enabled = !busy) { Text("Test Print") }
+        }
+        Text("Connection: $connection", style = MaterialTheme.typography.bodyLarge)
+        extra()
     }
 }

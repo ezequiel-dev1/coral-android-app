@@ -7,7 +7,9 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.coral.printagent.bridge.BridgeService
+import com.coral.printagent.model.PrinterEndpoint
 import com.coral.printagent.model.PrinterResult
+import com.coral.printagent.model.PrinterTarget
 import com.coral.printagent.model.PrinterSettings
 import com.coral.printagent.printer.PrinterRepository
 import com.coral.printagent.settings.PrinterSettingsRepository
@@ -18,9 +20,13 @@ class PrinterViewModel(private val app: Application) : AndroidViewModel(app) {
     private val settingsRepo = PrinterSettingsRepository(app)
     private val printerRepo = PrinterRepository()
 
-    var ip by mutableStateOf("")
+    var kitchenIp by mutableStateOf("")
         private set
-    var port by mutableStateOf("")
+    var kitchenPort by mutableStateOf("")
+        private set
+    var registerIp by mutableStateOf("")
+        private set
+    var registerPort by mutableStateOf("")
         private set
     var drawerPin by mutableStateOf(0)
         private set
@@ -32,14 +38,18 @@ class PrinterViewModel(private val app: Application) : AndroidViewModel(app) {
         private set
     var status by mutableStateOf<PrinterResult?>(null)
         private set
-    var connectionLabel by mutableStateOf("Not tested")
+    var kitchenConnection by mutableStateOf("Not tested")
+        private set
+    var registerConnection by mutableStateOf("Not tested")
         private set
 
     init {
         viewModelScope.launch {
             val s = settingsRepo.settings.first()
-            ip = s.ip
-            port = s.port.toString()
+            kitchenIp = s.kitchen.ip
+            kitchenPort = s.kitchen.port.toString()
+            registerIp = s.register.ip
+            registerPort = s.register.port.toString()
             drawerPin = s.drawerPin
             origin = s.allowedOrigin
             bridgeEnabled = s.bridgeEnabled
@@ -47,8 +57,19 @@ class PrinterViewModel(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun onIpChange(value: String) { ip = value.trim() }
-    fun onPortChange(value: String) { port = value.filter(Char::isDigit).take(5) }
+    fun onIpChange(target: PrinterTarget, value: String) {
+        when (target) {
+            PrinterTarget.KITCHEN -> kitchenIp = value.trim()
+            PrinterTarget.REGISTER -> registerIp = value.trim()
+        }
+    }
+    fun onPortChange(target: PrinterTarget, value: String) {
+        val digits = value.filter(Char::isDigit).take(5)
+        when (target) {
+            PrinterTarget.KITCHEN -> kitchenPort = digits
+            PrinterTarget.REGISTER -> registerPort = digits
+        }
+    }
     fun onPinChange(value: Int) { drawerPin = value }
     fun onOriginChange(value: String) { origin = value }
 
@@ -70,9 +91,39 @@ class PrinterViewModel(private val app: Application) : AndroidViewModel(app) {
         launchOp(persistOnly = true) { PrinterResult.Success("Settings saved") }
     }
 
-    fun testConnection() = launchOp { printerRepo.testConnection(it) }
-    fun testPrint() = launchOp { printerRepo.testPrint(it) }
-    fun openDrawer() = launchOp { printerRepo.openCashDrawer(it) }
+    fun testConnection(target: PrinterTarget) =
+        launchOp(target) { printerRepo.testConnection(it, target) }
+    fun testPrint(target: PrinterTarget) =
+        launchOp(target) { printerRepo.testPrint(it, target) }
+    /** Sends the test receipt to the kitchen printer, then the register printer. */
+    fun testPrintBoth() {
+        if (isBusy) return
+        val settings = validate() ?: return
+        isBusy = true
+        viewModelScope.launch {
+            try {
+                settingsRepo.save(settings)
+                val results = PrinterTarget.entries.map { t ->
+                    val r = printerRepo.testPrint(settings, t)
+                    val label = if (r is PrinterResult.Success) "Connected" else "Unreachable"
+                    when (t) {
+                        PrinterTarget.KITCHEN -> kitchenConnection = label
+                        PrinterTarget.REGISTER -> registerConnection = label
+                    }
+                    t to r
+                }
+                val summary = results.joinToString("\n") { (t, r) -> "${t.label}: ${r.message}" }
+                status = if (results.all { it.second is PrinterResult.Success }) {
+                    PrinterResult.Success(summary)
+                } else {
+                    PrinterResult.Failure(summary)
+                }
+            } finally {
+                isBusy = false
+            }
+        }
+    }
+    fun openDrawer() = launchOp(PrinterTarget.REGISTER) { printerRepo.openCashDrawer(it) }
 
     private fun persist(message: String) {
         val s = validate() ?: return
@@ -83,6 +134,7 @@ class PrinterViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     private fun launchOp(
+        target: PrinterTarget? = null,
         persistOnly: Boolean = false,
         action: suspend (PrinterSettings) -> PrinterResult,
     ) {
@@ -94,8 +146,12 @@ class PrinterViewModel(private val app: Application) : AndroidViewModel(app) {
                 settingsRepo.save(settings)
                 val result = action(settings)
                 status = result
-                if (!persistOnly) {
-                    connectionLabel = if (result is PrinterResult.Success) "Connected" else "Unreachable"
+                if (!persistOnly && target != null) {
+                    val label = if (result is PrinterResult.Success) "Connected" else "Unreachable"
+                    when (target) {
+                        PrinterTarget.KITCHEN -> kitchenConnection = label
+                        PrinterTarget.REGISTER -> registerConnection = label
+                    }
                 }
             } finally {
                 isBusy = false
@@ -104,18 +160,24 @@ class PrinterViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     private fun validate(): PrinterSettings? {
+        val kitchen = validateEndpoint(PrinterTarget.KITCHEN, kitchenIp, kitchenPort) ?: return null
+        val register = validateEndpoint(PrinterTarget.REGISTER, registerIp, registerPort) ?: return null
+        val normalized = parseOrigins(origin).joinToString(",")
+        origin = normalized
+        return PrinterSettings(kitchen, register, drawerPin, normalized, bridgeEnabled)
+    }
+
+    private fun validateEndpoint(target: PrinterTarget, ip: String, port: String): PrinterEndpoint? {
         if (!IPV4.matches(ip)) {
-            status = PrinterResult.Failure("Enter a valid IPv4 address, e.g. 192.168.1.100")
+            status = PrinterResult.Failure("${target.label}: enter a valid IPv4 address, e.g. 192.168.1.100")
             return null
         }
         val p = port.toIntOrNull()
         if (p == null || p !in 1..65535) {
-            status = PrinterResult.Failure("Port must be between 1 and 65535")
+            status = PrinterResult.Failure("${target.label}: port must be between 1 and 65535")
             return null
         }
-        val normalized = parseOrigins(origin).joinToString(",")
-        origin = normalized
-        return PrinterSettings(ip, p, drawerPin, normalized, bridgeEnabled)
+        return PrinterEndpoint(ip, p)
     }
 
     private fun parseOrigins(raw: String): List<String> =

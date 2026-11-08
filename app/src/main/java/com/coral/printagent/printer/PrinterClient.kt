@@ -24,8 +24,8 @@ class PrinterClient(
     suspend fun testConnection(): PrinterResult =
         execute("Connected to $printerIp:$printerPort", null)
 
-    suspend fun testPrint(): PrinterResult =
-        execute("Test receipt sent to printer", EscPosCommands.testReceipt())
+    suspend fun testPrint(stationLabel: String): PrinterResult =
+        execute("Test receipt sent to $stationLabel printer", EscPosCommands.testReceipt(stationLabel))
 
     suspend fun openCashDrawer(pin: Int = 0): PrinterResult =
         execute("Drawer pulse sent to printer", EscPosCommands.drawerPulse(pin))

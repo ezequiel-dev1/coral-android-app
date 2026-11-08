@@ -20,6 +20,7 @@ data class PrintJob(
     val feed: Int = 3,
     val cut: Boolean = true,
     val openDrawer: Boolean = false,
+    val printer: PrinterTarget = PrinterTarget.KITCHEN,
 ) {
     companion object {
         const val MAX_LINES = 500
@@ -38,7 +39,9 @@ data class PrintJob(
          *   ],
          *   "feed": 3,          // optional, blank lines before cut (0..10)
          *   "cut": true,        // optional, default true
-         *   "openDrawer": false // optional, default false
+         *   "openDrawer": false, // optional, default false; register printer only
+         *   "printer": "kitchen" // optional: "kitchen" or "register". Default "kitchen",
+         *                        // or "register" when openDrawer is true
          * }
          * ```
          *
@@ -71,11 +74,23 @@ data class PrintJob(
             }
             val feed = root.optInt("feed", 3)
             require(feed in 0..MAX_FEED) { "\"feed\" must be 0..$MAX_FEED" }
+            val openDrawer = root.optBoolean("openDrawer", false)
+            val printer = if (root.has("printer")) {
+                PrinterTarget.fromJson(root.optString("printer"))
+            } else if (openDrawer) {
+                PrinterTarget.REGISTER
+            } else {
+                PrinterTarget.KITCHEN
+            }
+            require(!openDrawer || printer == PrinterTarget.REGISTER) {
+                "Only the register printer is connected to the cash drawer"
+            }
             return PrintJob(
                 lines = lines,
                 feed = feed,
                 cut = root.optBoolean("cut", true),
-                openDrawer = root.optBoolean("openDrawer", false),
+                openDrawer = openDrawer,
+                printer = printer,
             )
         }
 
