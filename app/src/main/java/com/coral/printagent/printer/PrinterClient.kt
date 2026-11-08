@@ -30,6 +30,9 @@ class PrinterClient(
     suspend fun openCashDrawer(pin: Int = 0): PrinterResult =
         execute("Drawer pulse sent to printer", EscPosCommands.drawerPulse(pin))
 
+    suspend fun printRaw(data: ByteArray): PrinterResult =
+        execute("Print job sent to printer", data)
+
     private suspend fun execute(successMessage: String, data: ByteArray?): PrinterResult =
         withContext(Dispatchers.IO) {
             var writeTimedOut = false

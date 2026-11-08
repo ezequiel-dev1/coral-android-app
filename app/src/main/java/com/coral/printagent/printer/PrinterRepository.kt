@@ -10,6 +10,9 @@ class PrinterRepository {
 
     suspend fun testPrint(s: PrinterSettings): PrinterResult = client(s).testPrint()
 
+    suspend fun print(s: PrinterSettings, job: com.coral.printagent.model.PrintJob): PrinterResult =
+        client(s).printRaw(EscPosCommands.fromJob(job, s.drawerPin))
+
     suspend fun openCashDrawer(s: PrinterSettings): PrinterResult =
         client(s).openCashDrawer(s.drawerPin)
 }
