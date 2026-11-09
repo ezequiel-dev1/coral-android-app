@@ -67,7 +67,13 @@ fun PrinterScreen(vm: PrinterViewModel, modifier: Modifier = Modifier) {
             onPort = { vm.onPortChange(PrinterTarget.KITCHEN, it) },
             onTestConnection = { vm.testConnection(PrinterTarget.KITCHEN) },
             onTestPrint = { vm.testPrint(PrinterTarget.KITCHEN) },
-        )
+        ) {
+            Button(
+                onClick = vm::printLogo,
+                enabled = !vm.isBusy,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Print Coral Logo") }
+        }
         PrinterSection(
             title = "Register printer (receipts, cash drawer)",
             ip = vm.registerIp,

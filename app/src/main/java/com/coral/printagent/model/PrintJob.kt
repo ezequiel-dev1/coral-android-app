@@ -21,6 +21,8 @@ data class PrintJob(
     val cut: Boolean = true,
     val openDrawer: Boolean = false,
     val printer: PrinterTarget = PrinterTarget.KITCHEN,
+    /** Print the Coral logo, centered, above the lines. Kitchen printer only. */
+    val logo: Boolean = false,
 ) {
     companion object {
         const val MAX_LINES = 500
@@ -40,6 +42,7 @@ data class PrintJob(
          *   "feed": 3,          // optional, blank lines before cut (0..10)
          *   "cut": true,        // optional, default true
          *   "openDrawer": false, // optional, default false; register printer only
+         *   "logo": false,       // optional, default false; kitchen printer only
          *   "printer": "kitchen" // optional: "kitchen" or "register". Default "kitchen",
          *                        // or "register" when openDrawer is true
          * }
@@ -85,12 +88,17 @@ data class PrintJob(
             require(!openDrawer || printer == PrinterTarget.REGISTER) {
                 "Only the register printer is connected to the cash drawer"
             }
+            val logo = root.optBoolean("logo", false)
+            require(!logo || printer == PrinterTarget.KITCHEN) {
+                "The logo can only be printed on the kitchen printer"
+            }
             return PrintJob(
                 lines = lines,
                 feed = feed,
                 cut = root.optBoolean("cut", true),
                 openDrawer = openDrawer,
                 printer = printer,
+                logo = logo,
             )
         }
 

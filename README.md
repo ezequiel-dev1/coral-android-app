@@ -58,7 +58,7 @@ When enabled, the app listens on `http://127.0.0.1:8765`, on the tablet only. Ot
 |---|---|---|
 | GET | `/status` | Health check |
 | POST | `/print/test` | Print the test receipt. Optional body `{"printer":"kitchen"\|"register"}`, default kitchen |
-| POST | `/print` | Print a job. Add `"printer": "kitchen"` or `"register"` (default kitchen, or register when `openDrawer` is true). `openDrawer` on the kitchen printer returns 400 |
+| POST | `/print` | Print a job. Add `"printer": "kitchen"` or `"register"` (default kitchen, or register when `openDrawer` is true). `openDrawer` on the kitchen printer returns 400. Add `"logo": true` to print the Coral logo centered above the lines (kitchen printer only, otherwise 400) |
 | POST | `/drawer/open` | Open the cash drawer (always the register printer) |
 
 Responses are JSON: `{ "ok": boolean, "message": string }`.

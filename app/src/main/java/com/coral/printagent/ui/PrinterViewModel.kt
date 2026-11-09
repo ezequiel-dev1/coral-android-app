@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 
 class PrinterViewModel(private val app: Application) : AndroidViewModel(app) {
     private val settingsRepo = PrinterSettingsRepository(app)
-    private val printerRepo = PrinterRepository()
+    private val printerRepo = PrinterRepository(app)
 
     var kitchenIp by mutableStateOf("")
         private set
@@ -123,6 +123,7 @@ class PrinterViewModel(private val app: Application) : AndroidViewModel(app) {
             }
         }
     }
+    fun printLogo() = launchOp(PrinterTarget.KITCHEN) { printerRepo.printLogo(it) }
     fun openDrawer() = launchOp(PrinterTarget.REGISTER) { printerRepo.openCashDrawer(it) }
 
     private fun persist(message: String) {

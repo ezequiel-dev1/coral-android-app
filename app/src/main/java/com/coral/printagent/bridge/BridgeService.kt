@@ -38,7 +38,7 @@ import kotlinx.coroutines.sync.withLock
 class BridgeService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val printerLock = Mutex()
-    private val printer = PrinterRepository()
+    private val printer = PrinterRepository(this)
     private lateinit var settingsRepo: PrinterSettingsRepository
     private var server: ServerSocket? = null
 
