@@ -1,5 +1,7 @@
 package com.coral.printagent.ui
 
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,13 +16,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -33,6 +36,7 @@ import com.coral.printagent.model.PrinterTarget
 
 @Composable
 fun PrinterScreen(vm: PrinterViewModel, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
     Column(
         modifier = modifier
             .verticalScroll(rememberScrollState())
@@ -51,6 +55,31 @@ fun PrinterScreen(vm: PrinterViewModel, modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.primary,
         )
 
+        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text("Changed router or Wi-Fi?", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Connect this tablet to the new network, enter each printer's new IP address below, " +
+                        "then save and verify both connections. This does not print a receipt.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            context.startActivity(Intent(Settings.ACTION_WIFI_SETTINGS))
+                        },
+                        enabled = !vm.isBusy,
+                    ) { Text("Wi-Fi Settings") }
+                    Button(onClick = vm::applyNetworkChange, enabled = !vm.isBusy) {
+                        Text("Save & Verify")
+                    }
+                }
+            }
+        }
+
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = vm::save, enabled = !vm.isBusy) { Text("Save") }
             Button(onClick = vm::testPrintBoth, enabled = !vm.isBusy) {
@@ -67,13 +96,7 @@ fun PrinterScreen(vm: PrinterViewModel, modifier: Modifier = Modifier) {
             onPort = { vm.onPortChange(PrinterTarget.KITCHEN, it) },
             onTestConnection = { vm.testConnection(PrinterTarget.KITCHEN) },
             onTestPrint = { vm.testPrint(PrinterTarget.KITCHEN) },
-        ) {
-            Button(
-                onClick = vm::printLogo,
-                enabled = !vm.isBusy,
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text("Print Coral Logo") }
-        }
+        ) {}
         PrinterSection(
             title = "Register printer (receipts, cash drawer)",
             ip = vm.registerIp,
@@ -100,6 +123,11 @@ fun PrinterScreen(vm: PrinterViewModel, modifier: Modifier = Modifier) {
                 enabled = !vm.isBusy,
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Open Cash Drawer") }
+            Button(
+                onClick = vm::printLogo,
+                enabled = !vm.isBusy,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Print Coral Logo") }
         }
 
         Text("Web bridge (Chrome on this tablet)", style = MaterialTheme.typography.titleMedium)
@@ -116,8 +144,7 @@ fun PrinterScreen(vm: PrinterViewModel, modifier: Modifier = Modifier) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Switch(checked = vm.bridgeEnabled, onCheckedChange = vm::setBridge)
-            Text("Listen on http://127.0.0.1:${BridgeService.PORT}")
+            Text("Listening on http://127.0.0.1:${BridgeService.PORT}")
         }
 
         if (vm.isBusy) {

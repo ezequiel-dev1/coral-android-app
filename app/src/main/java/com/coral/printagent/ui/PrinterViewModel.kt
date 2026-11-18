@@ -32,8 +32,7 @@ class PrinterViewModel(private val app: Application) : AndroidViewModel(app) {
         private set
     var origin by mutableStateOf("")
         private set
-    var bridgeEnabled by mutableStateOf(false)
-        private set
+    val bridgeEnabled = true
     var isBusy by mutableStateOf(false)
         private set
     var status by mutableStateOf<PrinterResult?>(null)
@@ -52,9 +51,9 @@ class PrinterViewModel(private val app: Application) : AndroidViewModel(app) {
             registerPort = s.register.port.toString()
             drawerPin = s.drawerPin
             origin = s.allowedOrigin
-            bridgeEnabled = s.bridgeEnabled
-            if (bridgeEnabled) BridgeService.start(app)
         }
+        // Bridge always runs on startup (127.0.0.1:8765).
+        BridgeService.start(app)
     }
 
     fun onIpChange(target: PrinterTarget, value: String) {
@@ -73,16 +72,6 @@ class PrinterViewModel(private val app: Application) : AndroidViewModel(app) {
     fun onPinChange(value: Int) { drawerPin = value }
     fun onOriginChange(value: String) { origin = value }
 
-    fun setBridge(enabled: Boolean) {
-        if (enabled && (!originValid() || parseOrigins(origin).isEmpty())) {
-            status = PrinterResult.Failure("Enter at least one web app origin first, e.g. https://app.example.com")
-            return
-        }
-        bridgeEnabled = enabled
-        if (enabled) BridgeService.start(app) else BridgeService.stop(app)
-        persist(if (enabled) "Web bridge enabled on localhost:${BridgeService.PORT}" else "Web bridge disabled")
-    }
-
     fun save() {
         if (!originValid()) {
             status = PrinterResult.Failure("Each origin must look like https://app.example.com")
@@ -95,6 +84,40 @@ class PrinterViewModel(private val app: Application) : AndroidViewModel(app) {
         launchOp(target) { printerRepo.testConnection(it, target) }
     fun testPrint(target: PrinterTarget) =
         launchOp(target) { printerRepo.testPrint(it, target) }
+
+    /**
+     * Saves the endpoints entered after a router/network change and checks that
+     * both printers are reachable. This deliberately does not print anything.
+     */
+    fun applyNetworkChange() {
+        if (isBusy) return
+        val settings = validate() ?: return
+        isBusy = true
+        viewModelScope.launch {
+            try {
+                settingsRepo.save(settings)
+                val results = PrinterTarget.entries.map { target ->
+                    val result = printerRepo.testConnection(settings, target)
+                    val label = if (result is PrinterResult.Success) "Connected" else "Unreachable"
+                    when (target) {
+                        PrinterTarget.KITCHEN -> kitchenConnection = label
+                        PrinterTarget.REGISTER -> registerConnection = label
+                    }
+                    target to result
+                }
+                val summary = results.joinToString("\n") { (target, result) ->
+                    "${target.label}: ${result.message}"
+                }
+                status = if (results.all { it.second is PrinterResult.Success }) {
+                    PrinterResult.Success("New network settings saved.\n$summary")
+                } else {
+                    PrinterResult.Failure("Settings saved, but one or more printers could not be reached.\n$summary")
+                }
+            } finally {
+                isBusy = false
+            }
+        }
+    }
     /** Sends the test receipt to the kitchen printer, then the register printer. */
     fun testPrintBoth() {
         if (isBusy) return
@@ -123,7 +146,7 @@ class PrinterViewModel(private val app: Application) : AndroidViewModel(app) {
             }
         }
     }
-    fun printLogo() = launchOp(PrinterTarget.KITCHEN) { printerRepo.printLogo(it) }
+    fun printLogo() = launchOp(PrinterTarget.REGISTER) { printerRepo.printLogo(it) }
     fun openDrawer() = launchOp(PrinterTarget.REGISTER) { printerRepo.openCashDrawer(it) }
 
     private fun persist(message: String) {

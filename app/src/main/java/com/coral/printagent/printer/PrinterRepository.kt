@@ -24,9 +24,9 @@ class PrinterRepository(private val context: Context) {
     suspend fun print(s: PrinterSettings, job: PrintJob): PrinterResult =
         client(s, job.printer).printRaw(EscPosCommands.fromJob(job, s.drawerPin, logo))
 
-    /** Prints the Coral logo alone on the kitchen printer. */
+    /** Prints the Coral logo alone on the register printer. */
     suspend fun printLogo(s: PrinterSettings): PrinterResult =
-        client(s, PrinterTarget.KITCHEN).printRaw(EscPosCommands.logoOnly(logo))
+        client(s, PrinterTarget.REGISTER).printRaw(EscPosCommands.logoOnly(logo))
 
     /** The cash drawer is only connected to the register printer. */
     suspend fun openCashDrawer(s: PrinterSettings): PrinterResult =

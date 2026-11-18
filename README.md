@@ -9,6 +9,7 @@ No internet connection is required. Everything happens on the local Wi-Fi/LAN.
 ## Features
 
 - Configure the kitchen printer and the register printer (IP and TCP port, default `9100`), plus the cash drawer pin (0 or 1). The drawer is connected to the register printer only. Settings persist across restarts.
+- **Router-change setup**: open Android Wi-Fi settings, update both printer IP addresses, then use **Save & Verify** to persist the new endpoints and test both connections without printing.
 - **Test Connection**: opens and closes a TCP connection to the printer.
 - **Test Print**: prints a sample ESC/POS receipt and cuts the paper.
 - **Open Cash Drawer**: sends the ESC/POS drawer pulse.
@@ -58,7 +59,7 @@ When enabled, the app listens on `http://127.0.0.1:8765`, on the tablet only. Ot
 |---|---|---|
 | GET | `/status` | Health check |
 | POST | `/print/test` | Print the test receipt. Optional body `{"printer":"kitchen"\|"register"}`, default kitchen |
-| POST | `/print` | Print a job. Add `"printer": "kitchen"` or `"register"` (default kitchen, or register when `openDrawer` is true). `openDrawer` on the kitchen printer returns 400. Add `"logo": true` to print the Coral logo centered above the lines (kitchen printer only, otherwise 400) |
+| POST | `/print` | Print a job. Add `"printer": "kitchen"` or `"register"` (default kitchen, or register when `openDrawer` is true). `openDrawer` on the kitchen printer returns 400. Add `"logo": true` to print the Coral logo centered above the lines (register printer only, otherwise 400) |
 | POST | `/drawer/open` | Open the cash drawer (always the register printer) |
 
 Responses are JSON: `{ "ok": boolean, "message": string }`.
@@ -108,6 +109,15 @@ The full integration spec for the web app is in [`docs/web-app-integration-spec.
 5. In the Android battery settings for the app, choose **Unrestricted**, so the system doesn't stop the bridge.
 
 If the drawer doesn't open, try pin 1 in the app. Check the NE-511's pin mapping before relying on it.
+
+### Moving to a different router
+
+1. Use **Wi-Fi Settings** in the app to connect the tablet to the new router's network.
+2. Find or assign the new IP address for each printer in the router/printer setup, preferably using a DHCP reservation.
+3. Enter the new Kitchen and Register IP addresses in the app.
+4. Tap **Save & Verify**. It saves the new addresses and checks both printers, without printing a test ticket.
+
+This app can update the addresses it uses to reach the printers; changing a printer's own network configuration still happens through the router or the printer's configuration utility.
 
 ## Tech stack
 
